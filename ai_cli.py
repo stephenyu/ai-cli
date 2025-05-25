@@ -5,22 +5,75 @@ AI CLI - Convert natural language questions to terminal commands using OpenAI
 
 import argparse
 import os
+import subprocess
 import sys
+import shutil
 from openai import OpenAI
 from pydantic import BaseModel
+
+# Default OpenAI model to use
+DEFAULT_MODEL = "gpt-4.1-nano-2025-04-14"
 
 
 class CommandOutput(BaseModel):
     command_line: str
 
 
-def get_terminal_command(question, client, model="gpt-4o-2024-08-06"):
+def get_system_info():
+    """
+    Get system information using uname -a to help the AI target the correct platform.
+    """
+    try:
+        result = subprocess.run(['uname', '-a'], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return "Unknown system"
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+        return "Unknown system"
+
+
+def copy_to_clipboard(text):
+    """
+    Copy text to system clipboard using available tools.
+    """
+    try:
+        # Try pbcopy (macOS)
+        if shutil.which('pbcopy'):
+            subprocess.run(['pbcopy'], input=text, text=True, check=True)
+            return True
+        # Try xclip (Linux)
+        elif shutil.which('xclip'):
+            subprocess.run(['xclip', '-selection', 'clipboard'], input=text, text=True, check=True)
+            return True
+        # Try xsel (Linux alternative)
+        elif shutil.which('xsel'):
+            subprocess.run(['xsel', '--clipboard', '--input'], input=text, text=True, check=True)
+            return True
+        # Try clip (Windows/WSL)
+        elif shutil.which('clip'):
+            subprocess.run(['clip'], input=text, text=True, check=True)
+            return True
+        else:
+            return False
+    except subprocess.SubprocessError:
+        return False
+
+
+def get_terminal_command(question, client, model=DEFAULT_MODEL):
     """
     Use OpenAI to convert a natural language question into a terminal command.
     """
-    system_prompt = """# Identity
+    # Get system information to help target the correct platform
+    system_info = get_system_info()
+    
+    system_prompt = f"""# Identity
 
 You are a terminal command expert that converts natural language questions into precise Unix/Linux/macOS terminal commands.
+
+# System Information
+
+Target system: {system_info}
 
 # Instructions
 
@@ -70,7 +123,7 @@ count lines in all python files
 </question>
 
 <command id="example-5">
-find . -name "*.py" -exec wc -l {} + | tail -1
+find . -name "*.py" -exec wc -l {{}} + | tail -1
 </command>
 """
 
@@ -102,14 +155,14 @@ def main():
         help="The question or description of what you want to do"
     )
     parser.add_argument(
-        "--execute", "-e",
+        "--copy", "-c",
         action="store_true",
-        help="Execute the command immediately (use with caution!)"
+        help="Copy the command to clipboard"
     )
     parser.add_argument(
         "--model",
-        default="gpt-4o-2024-08-06",
-        help="OpenAI model to use (default: gpt-4o-2024-08-06)"
+        default=DEFAULT_MODEL,
+        help=f"OpenAI model to use (default: {DEFAULT_MODEL})"
     )
     
     args = parser.parse_args()
@@ -131,13 +184,17 @@ def main():
     if command is None:
         sys.exit(1)
     
-    # Print the command
-    print(command)
-    
-    # Optionally execute the command
-    if args.execute:
-        print(f"\nExecuting: {command}", file=sys.stderr)
-        os.system(command)
+    # Handle different output modes
+    if args.copy:
+        # Copy to clipboard mode
+        print(command)
+        if copy_to_clipboard(command):
+            print("✅ Command copied to clipboard! Paste and press Enter to execute.", file=sys.stderr)
+        else:
+            print("❌ Could not copy to clipboard. Please copy the command manually.", file=sys.stderr)
+    else:
+        # Default: just print the command
+        print(command)
 
 
 if __name__ == "__main__":
