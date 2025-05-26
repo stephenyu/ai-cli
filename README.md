@@ -68,9 +68,6 @@ ai "replace tabs with spaces in file"     # sed 's/\t/    /g' filename
 
 ### Advanced Features
 ```bash
-# Interactive mode: opens shell with command pre-populated (edit and press Enter)
-ai "show current directory size" --interactive
-
 # Copy to clipboard mode: paste with Cmd+V/Ctrl+V and press Enter
 ai "compress directory" --copy
 
@@ -139,7 +136,6 @@ echo 'set -gx OPENAI_API_KEY "your-api-key-here"' >> ~/.config/fish/config.fish
 ### Command Options
 ```bash
 ai "your question"                    # Basic usage (display command)
-ai "your question" --interactive      # Interactive shell with command pre-populated
 ai "your question" --copy             # Copy command to clipboard
 ai "your question" --model gpt-4      # Use specific model
 ai --help                            # Show help
@@ -150,7 +146,6 @@ ai --help                            # Show help
 | Mode | Flag | Description | Best For |
 |------|------|-------------|----------|
 | **Display** | (default) | Shows the command for you to copy manually | Learning, reviewing commands |
-| **Interactive** | `-i`, `--interactive` | Opens shell with command pre-typed, edit and press Enter | When you want to modify the command |
 | **Clipboard** | `-c`, `--copy` | Copies to clipboard, paste and press Enter | Quick execution of trusted commands |
 
 ### Environment Variables
@@ -166,15 +161,14 @@ ai --help                            # Show help
 
 ### ⚠️ Important Safety Tips
 1. **Always review commands before executing**
-2. **Use interactive mode (`-i`) to edit commands before running**
-3. **Start with simple, safe commands to test**
-4. **Keep your API key secure and never commit it to version control**
+2. **Start with simple, safe commands to test**
+3. **Keep your API key secure and never commit it to version control**
 
 ### 💡 Pro Tips
 - **Be specific**: "list python files by size descending" vs "list files"
 - **Use quotes**: Wrap your entire question in quotes
-- **Interactive mode**: Use `-i` to edit commands before running them
 - **Clipboard mode**: Use `-c` to copy commands for easy pasting
+- **Review before running**: Always check the generated command before executing
 - **Learn patterns**: Notice how the AI interprets different phrasings
 
 ## 🐛 Troubleshooting
