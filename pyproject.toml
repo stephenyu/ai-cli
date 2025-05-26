@@ -7,7 +7,7 @@ name = "ai-cli"
 version = "0.1.0"
 description = "Convert natural language questions to terminal commands using OpenAI"
 authors = [
-    {name = "Your Name", email = "your@email.com"}
+    {name = "Stephen Yu"}
 ]
 license = "MIT"
 readme = "README.md"
@@ -30,9 +30,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/ai-cli"
-Repository = "https://github.com/yourusername/ai-cli.git"
-Issues = "https://github.com/yourusername/ai-cli/issues"
+Homepage = "https://github.com/stephenyu/ai-cli"
+Repository = "https://github.com/stephenyu/ai-cli.git"
+Issues = "https://github.com/stephenyu/ai-cli/issues"
 
 [project.scripts]
 ai = "ai_cli.main:main"
