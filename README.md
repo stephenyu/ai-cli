@@ -15,7 +15,16 @@ Convert natural language questions to terminal commands using OpenAI.
 ### Via Homebrew (macOS/Linux)
 
 ```bash
-brew install yourusername/tap/ai-cli
+# Add the tap
+brew tap stephenyu/tap
+
+# Install AI CLI
+brew install ai-cli
+```
+
+Or in one command:
+```bash
+brew install stephenyu/tap/ai-cli
 ```
 
 ### Via pip

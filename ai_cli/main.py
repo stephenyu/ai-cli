@@ -339,6 +339,13 @@ def main():
         prog="ai"
     )
     
+    # Add version argument
+    parser.add_argument(
+        "--version", "-v",
+        action="version",
+        version="0.2.0"
+    )
+    
     # Create subparsers for different commands
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
