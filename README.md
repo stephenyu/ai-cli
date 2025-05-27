@@ -27,16 +27,10 @@ Or in one command:
 brew install stephenyu/tap/ai-cli
 ```
 
-### Via pip
-
-```bash
-pip install ai-cli
-```
-
 ### From source
 
 ```bash
-git clone https://github.com/yourusername/ai-cli.git
+git clone https://github.com/stephenyu/ai-cli.git
 cd ai-cli
 pip install .
 ```
