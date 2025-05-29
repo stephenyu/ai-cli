@@ -3,8 +3,8 @@ class AiCli < Formula
 
   desc "Convert natural language questions to terminal commands using OpenAI"
   homepage "https://github.com/stephenyu/ai-cli"
-  url "https://github.com/stephenyu/ai-cli/archive/refs/tags/v0.2.1.tar.gz"
-  sha256 "b6c73f9e389757374f8a4d16685000ff6aca21aeb696ef45fcac10dc7a7c2fe7"  # This will need to be updated with the actual SHA256
+  url "https://github.com/stephenyu/ai-cli/archive/refs/tags/v0.3.0.tar.gz"
+  sha256 "5aaddd89044dc8e2fda68b40df17de2fce7c0755ace5934e984ebd4ffd7d5bfd"  # This will need to be updated with the actual SHA256
   license "MIT"
 
   depends_on "python@3.13"

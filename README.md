@@ -155,6 +155,79 @@ ai "update all npm packages"
 ai "list installed homebrew packages"
 ```
 
+## Releases (For Developers)
+
+### Automated Release Process
+
+Use the provided release script for a streamlined release process:
+
+```bash
+# Create a new release (e.g., version 0.4.0)
+./release.sh 0.4.0
+```
+
+This script will:
+1. ✅ Validate version format and check for uncommitted changes
+2. 🔄 Update version in `pyproject.toml` and `generate_release_sha.sh`
+3. 🏗️ Build the package and run tests
+4. 📝 Commit version changes
+5. 🏷️ Create and push an annotated Git tag
+6. 📋 Generate a release notes template
+7. 💡 Provide next steps for GitHub release creation
+
+**Prerequisites:**
+- Clean working directory (no uncommitted changes)
+- Python development dependencies installed
+- Push access to the repository
+
+### Manual Release Process
+
+If you prefer to create releases manually:
+
+```bash
+# Create an annotated tag (recommended for releases)
+git tag -a v0.4.0 -m "Release version 0.4.0"
+
+# Or create a lightweight tag
+git tag v0.4.0
+
+# Push the tag to GitHub
+git push origin v0.4.0
+
+# Push all tags
+git push --tags
+```
+
+### GitHub Release Creation
+
+After creating and pushing a tag:
+
+1. Go to [GitHub Releases](https://github.com/stephenyu/ai-cli/releases/new)
+2. Select your tag (e.g., `v0.4.0`)
+3. Fill in the release title and description
+4. Publish the release
+
+### Homebrew Formula Update
+
+After creating a GitHub release, update the Homebrew formula:
+
+```bash
+# Generate SHA256 for the new release
+./generate_release_sha.sh
+
+# Update your Homebrew tap repository with the new version and SHA
+```
+
+### Release Checklist
+
+- [ ] All tests pass (`pytest`)
+- [ ] Version updated in `pyproject.toml`
+- [ ] Version updated in `generate_release_sha.sh`
+- [ ] Tag created and pushed
+- [ ] GitHub release published
+- [ ] Homebrew formula updated
+- [ ] Release notes documented
+
 ## Configuration
 
 The AI CLI stores your OpenAI API key securely using your system's keyring:
