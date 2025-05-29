@@ -35,6 +35,51 @@ cd ai-cli
 pip install .
 ```
 
+## Development
+
+If you're developing or contributing to the AI CLI, you have several options to run the application:
+
+### Option 1: Run as a module (recommended for development)
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run directly from source
+python -m ai_cli.main "your question here"
+python -m ai_cli.main setup
+python -m ai_cli.main status
+```
+
+**Note:** The `-m` flag is required because the codebase uses relative imports. Running `python ai_cli/main.py` directly will fail with import errors.
+
+### Option 2: Development installation
+
+```bash
+# Install in editable/development mode
+pip install -e .
+
+# Now you can use the 'ai' command normally
+ai "your question here"
+ai setup
+ai status
+```
+
+This is the cleanest approach as it eliminates runtime warnings and matches the production usage.
+
+### Running tests
+
+```bash
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Run tests with coverage
+pytest --cov=ai_cli
+```
+
 ## Setup
 
 After installation, configure your OpenAI API key:
