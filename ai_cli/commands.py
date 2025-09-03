@@ -5,12 +5,13 @@ CLI commands for AI CLI.
 import sys
 from typing import Optional
 
-from .config import MESSAGES, get_env_api_key, DEFAULT_PROVIDER
+from .config import MESSAGES, get_env_api_key, DEFAULT_PROVIDER, get_provider_config
+from .config_manager import ConfigManager
 from .api_key_manager import APIKeyManager
 from .system_utils import SystemUtils
 from .openai_client import OpenAIClient
 from .providers import create_provider
-from .providers.factory import UnsupportedProviderError
+from .providers.factory import UnsupportedProviderError, get_provider_class, ProviderFactory
 from .exceptions import (
     APIKeyNotFoundError, 
     APIKeyInvalidError, 
@@ -26,83 +27,145 @@ class BaseCommand:
     def __init__(self):
         self.api_key_manager = APIKeyManager()
         self.system_utils = SystemUtils()
+        self.config_manager = ConfigManager()
 
 
 class SetupCommand(BaseCommand):
-    """Handles the setup command for configuring API key."""
+    """Handles the setup command for configuring providers."""
     
     def execute(self, provider: str = None) -> None:
         """
         Execute the setup command.
         
         Args:
-            provider: The AI provider to configure.
+            provider: The AI provider to configure (optional).
         """
-        if provider is None:
-            provider = DEFAULT_PROVIDER
-            
-        provider_name = provider.title()
         print(MESSAGES["setup_header"])
         print(MESSAGES["separator"])
         print()
         
-        # Check if key already exists
-        existing_key = self.api_key_manager.get_provider_api_key(provider)
-        if existing_key:
-            print(f"✅ {provider_name} API key is already configured.")
-            response = input("Would you like to update it? (y/N): ").strip().lower()
-            if response not in ['y', 'yes']:
-                print("Setup cancelled.")
-                return
-            print()
-        
-        print(MESSAGES["api_key_prompt"].replace("OpenAI", provider_name))
-        if provider.lower() == "openai":
-            print(MESSAGES["api_key_url"])
-        print()
-        
         try:
-            # Get API key from user
-            api_key = self.api_key_manager.prompt_for_api_key()
+            # If no provider specified, ask user to choose
+            if provider is None:
+                provider = self._prompt_for_provider()
             
-            print()
-            print(MESSAGES["testing_key"])
+            # Get the provider class and run interactive setup
+            provider_class = get_provider_class(provider)
+            provider_name = provider_class.get_provider_display_name()
             
-            # Test the API key with the provider
-            try:
-                ai_provider = create_provider(provider, api_key)
-                ai_provider.validate_api_key()
-                print("✅ API key is valid!")
-            except (APIKeyInvalidError, OpenAIAPIError, UnsupportedProviderError) as e:
-                print(f"❌ API key test failed: {e}")
-                response = input("Store the key anyway? (y/N): ").strip().lower()
+            # Check if configuration already exists
+            if self._has_existing_config(provider):
+                print(f"✅ {provider_name} is already configured.")
+                response = input("Would you like to update it? (y/N): ").strip().lower()
                 if response not in ['y', 'yes']:
                     print("Setup cancelled.")
                     return
+                print()
+            
+            # Run provider-specific interactive setup
+            provider_instance = provider_class.setup_interactive()
+            
+            # Save provider selection to config file
+            self.config_manager.set_provider(provider)
+            
+            # Save provider-specific settings to config file if applicable
+            self._save_provider_settings(provider, provider_instance)
             
             print()
-            print(MESSAGES["storing_key"])
+            print(MESSAGES["setup_complete"])
+            print(MESSAGES["example_usage"])
             
-            # Store the API key
-            try:
-                self.api_key_manager.store_provider_api_key(provider, api_key)
-                print(f"✅ {provider_name} API key stored securely in system keyring!")
-                print()
-                print(MESSAGES["setup_complete"])
-                print(MESSAGES["example_usage"])
-            except Exception as e:
-                print(f"❌ Failed to store API key securely: {e}")
-                from .config import get_provider_config
-                try:
-                    config = get_provider_config(provider)
-                    env_var = config["env_var"]
-                except KeyError:
-                    env_var = f"{provider.upper()}_API_KEY"
-                print(f"You can still use the {env_var} environment variable as a fallback.")
-                
         except KeyboardInterrupt:
             print("\nSetup cancelled.")
             sys.exit(1)
+        except UnsupportedProviderError as e:
+            print(f"❌ {e}")
+            sys.exit(1)
+    
+    def _prompt_for_provider(self) -> str:
+        """
+        Prompt user to select a provider.
+        
+        Returns:
+            Selected provider name.
+        """
+        available_providers = ProviderFactory.get_available_providers()
+        
+        print("Which AI provider would you like to use?")
+        for i, provider in enumerate(available_providers, 1):
+            provider_class = get_provider_class(provider)
+            display_name = provider_class.get_provider_display_name()
+            default_marker = " (default)" if provider == DEFAULT_PROVIDER else ""
+            print(f"  {i}. {display_name} ({provider}){default_marker}")
+        print()
+        
+        while True:
+            choice = input(f"Enter choice (1-{len(available_providers)}) or provider name (default: {DEFAULT_PROVIDER}): ").strip().lower()
+            
+            # Handle default case
+            if not choice:
+                return DEFAULT_PROVIDER
+            
+            # Handle numeric choice
+            if choice.isdigit():
+                choice_num = int(choice)
+                if 1 <= choice_num <= len(available_providers):
+                    return available_providers[choice_num - 1]
+                else:
+                    print(f"❌ Please enter a number between 1 and {len(available_providers)}")
+                    continue
+            
+            # Handle provider name
+            if choice in available_providers:
+                return choice
+            
+            # Handle invalid choice
+            print(f"❌ Invalid choice. Available providers: {', '.join(available_providers)}")
+    
+    def _has_existing_config(self, provider: str) -> bool:
+        """
+        Check if provider already has configuration stored in keyring (not env vars).
+        
+        Args:
+            provider: Provider name to check.
+            
+        Returns:
+            True if configuration exists in keyring, False otherwise.
+        """
+        try:
+            # Only check keyring, not environment variables
+            config = get_provider_config(provider)
+            import keyring
+            existing_key = keyring.get_password(config["keyring_service"], config["keyring_username"])
+            return bool(existing_key)
+        except Exception:
+            return False
+    
+    def _save_provider_settings(self, provider: str, provider_instance) -> None:
+        """
+        Save provider-specific settings to config file.
+        
+        Args:
+            provider: Provider name.
+            provider_instance: Provider instance with configuration.
+        """
+        if provider.lower() == "ollama":
+            # For Ollama, save URL and model to config file
+            if hasattr(provider_instance, 'config'):
+                ollama_config = {}
+                if 'url' in provider_instance.config:
+                    ollama_config['url'] = provider_instance.config['url']
+                if 'model' in provider_instance.config:
+                    ollama_config['model'] = provider_instance.config['model']
+                
+                if ollama_config:
+                    self.config_manager.set_provider_config("ollama", ollama_config)
+        
+        elif provider.lower() == "openai":
+            # For OpenAI, save default model if it's different from system default
+            if hasattr(provider_instance, 'model'):
+                openai_config = {'model': provider_instance.model}
+                self.config_manager.set_provider_config("openai", openai_config)
 
 
 class StatusCommand(BaseCommand):
@@ -114,37 +177,182 @@ class StatusCommand(BaseCommand):
         print(MESSAGES["separator"])
         print()
         
-        # Check keyring storage
-        try:
-            stored_key = self.api_key_manager.get_api_key()
-            if stored_key:
-                masked_key = self.api_key_manager.get_masked_key(stored_key)
-                print(f"✅ API Key (keyring): {masked_key}")
-            else:
-                print("❌ No API key found in keyring")
-        except Exception:
-            print("❌ Keyring not available")
+        # Get current provider from config
+        current_provider = self.config_manager.get_provider() or DEFAULT_PROVIDER
         
-        # Check environment variable
-        env_key = get_env_api_key()
-        if env_key:
-            masked_env_key = self.api_key_manager.get_masked_key(env_key)
-            print(f"✅ API Key (env var): {masked_env_key}")
-        else:
-            print("❌ No OPENAI_API_KEY environment variable")
+        # Check provider-specific credentials/configuration
+        self._check_provider_status(current_provider)
         
         print()
         
+        # Check configuration file status
+        if self.config_manager.config_exists():
+            print("📁 Configuration file status:")
+            if current_provider:
+                print(f"   Selected provider: {current_provider}")
+                
+                # Show provider-specific settings
+                provider_config = self.config_manager.get_provider_config(current_provider)
+                if provider_config:
+                    for key, value in provider_config.items():
+                        print(f"   {current_provider}.{key}: {value}")
+            else:
+                print("   No provider selected")
+            print()
+        else:
+            print("📁 No configuration file found")
+            print()
+        
         # Overall status
-        final_key = self.api_key_manager.get_api_key()
-        if final_key:
+        if self._is_provider_ready(current_provider):
             print("✅ AI CLI is ready to use!")
         else:
             print("❌ No API key configured. Run 'ai setup' to get started.")
+    
+    def _check_provider_status(self, provider: str) -> None:
+        """
+        Check and display status for a specific provider.
+        
+        Args:
+            provider: The provider name to check.
+        """
+        if provider.lower() == "openai":
+            # Check keyring storage
+            try:
+                stored_key = self.api_key_manager.get_api_key()
+                if stored_key:
+                    masked_key = self.api_key_manager.get_masked_key(stored_key)
+                    print(f"✅ API Key (keyring): {masked_key}")
+                else:
+                    print("❌ No API key found in keyring")
+            except Exception:
+                print("❌ Keyring not available")
+            
+            # Check environment variable
+            env_key = get_env_api_key()
+            if env_key:
+                masked_env_key = self.api_key_manager.get_masked_key(env_key)
+                print(f"✅ API Key (env var): {masked_env_key}")
+            else:
+                print("❌ No OPENAI_API_KEY environment variable")
+                
+        elif provider.lower() == "ollama":
+            # For Ollama, check configuration instead of API keys
+            import json
+            from .config import get_provider_config, get_provider_env_api_key
+            
+            has_config = False
+            
+            try:
+                config = get_provider_config(provider)
+                
+                # Check keyring configuration
+                try:
+                    import keyring
+                    config_json = keyring.get_password(config["keyring_service"], config["keyring_username"])
+                    if config_json:
+                        keyring_config = json.loads(config_json)
+                        print("✅ Ollama configuration (keyring):")
+                        for key, value in keyring_config.items():
+                            print(f"   {key}: {value}")
+                        has_config = True
+                except Exception:
+                    pass
+                
+                # Check config file
+                file_config = self.config_manager.get_provider_config("ollama")
+                if file_config:
+                    if not has_config:
+                        print("✅ Ollama configuration (config file):")
+                        for key, value in file_config.items():
+                            print(f"   {key}: {value}")
+                    has_config = True
+                
+                # Check environment variable
+                env_config = get_provider_env_api_key(provider)
+                if env_config:
+                    try:
+                        env_data = json.loads(env_config)
+                        if not has_config:
+                            print("✅ Ollama configuration (env var):")
+                            for key, value in env_data.items():
+                                print(f"   {key}: {value}")
+                        has_config = True
+                    except json.JSONDecodeError:
+                        print(f"⚠️  Invalid {config['env_var']} format")
+                
+                if not has_config:
+                    print("❌ No Ollama configuration found")
+                
+            except KeyError:
+                print(f"❌ Provider '{provider}' not configured")
+                
+        else:
+            # Generic provider check - look for API key
+            try:
+                stored_key = self.api_key_manager.get_provider_api_key(provider)
+                if stored_key:
+                    masked_key = self.api_key_manager.get_masked_key(stored_key)
+                    print(f"✅ {provider.title()} API Key: {masked_key}")
+                else:
+                    print(f"❌ No {provider} API key found")
+            except Exception:
+                print(f"❌ Error checking {provider} configuration")
+    
+    def _is_provider_ready(self, provider: str) -> bool:
+        """
+        Check if a provider is ready to use.
+        
+        Args:
+            provider: The provider name to check.
+            
+        Returns:
+            True if the provider is configured and ready.
+        """
+        if provider.lower() == "openai":
+            return bool(self.api_key_manager.get_api_key())
+        elif provider.lower() == "ollama":
+            # For Ollama, check if we have any configuration
+            try:
+                from .config import get_provider_config, get_provider_env_api_key
+                import json
+                
+                config = get_provider_config(provider)
+                
+                # Check keyring
+                try:
+                    import keyring
+                    config_json = keyring.get_password(config["keyring_service"], config["keyring_username"])
+                    if config_json:
+                        return True
+                except Exception:
+                    pass
+                
+                # Check config file
+                file_config = self.config_manager.get_provider_config("ollama")
+                if file_config:
+                    return True
+                
+                # Check environment variable
+                env_config = get_provider_env_api_key(provider)
+                if env_config:
+                    try:
+                        json.loads(env_config)
+                        return True
+                    except json.JSONDecodeError:
+                        pass
+                
+                return False
+                
+            except KeyError:
+                return False
+        else:
+            # Generic provider check
+            return bool(self.api_key_manager.get_provider_api_key(provider))
 
 
 class ResetCommand(BaseCommand):
-    """Handles the reset command for removing API key."""
+    """Handles the reset command for removing all provider configurations."""
     
     def execute(self) -> None:
         """Execute the reset command."""
@@ -152,23 +360,110 @@ class ResetCommand(BaseCommand):
         print(MESSAGES["separator"])
         print()
         
-        existing_key = self.api_key_manager.get_api_key()
-        if not existing_key:
-            print("❌ No API key is currently configured.")
+        # Check for any existing configurations
+        has_configs = False
+        config_summary = []
+        
+        # Check each provider for existing configurations
+        available_providers = ProviderFactory.get_available_providers()
+        for provider in available_providers:
+            if self._has_existing_config(provider):
+                has_configs = True
+                provider_class = get_provider_class(provider)
+                display_name = provider_class.get_provider_display_name()
+                config_summary.append(display_name)
+        
+        if not has_configs:
+            print("❌ No provider configurations found.")
             return
         
-        print("⚠️  This will remove your stored OpenAI API key.")
+        # Show what will be removed
+        config_list = ", ".join(config_summary)
+        print(f"⚠️  This will remove all stored provider configurations: {config_list}")
         response = input("Are you sure? (y/N): ").strip().lower()
         
         if response in ['y', 'yes']:
+            removed_count = 0
+            errors = []
+            
+            # Remove configurations for each provider
+            for provider in available_providers:
+                if self._has_existing_config(provider):
+                    try:
+                        self._remove_provider_config(provider)
+                        provider_class = get_provider_class(provider)
+                        display_name = provider_class.get_provider_display_name()
+                        print(f"✅ {display_name} configuration removed successfully.")
+                        removed_count += 1
+                    except Exception as e:
+                        provider_class = get_provider_class(provider)
+                        display_name = provider_class.get_provider_display_name()
+                        error_msg = f"Could not remove {display_name} configuration: {e}"
+                        errors.append(error_msg)
+                        print(f"⚠️  {error_msg}")
+            
+            # Also remove legacy OpenAI key if it exists
             try:
                 self.api_key_manager.remove_api_key()
-                print("✅ API key removed successfully.")
+                print("✅ Legacy OpenAI configuration removed successfully.")
+            except Exception:
+                # Ignore errors for legacy key removal - it may not exist
+                pass
+            
+            # Remove config file
+            try:
+                if self.config_manager.config_exists():
+                    self.config_manager.reset_config()
+                    print("✅ Configuration file removed successfully.")
             except Exception as e:
-                print(f"⚠️  Could not remove API key from keyring: {e}")
-            print("Reset complete.")
+                print(f"⚠️  Could not remove configuration file: {e}")
+            
+            if removed_count > 0:
+                print(f"🎉 Reset complete! Removed {removed_count} provider configuration(s).")
+            
+            if errors:
+                print("\n⚠️  Some configurations could not be removed:")
+                for error in errors:
+                    print(f"   • {error}")
         else:
             print("Reset cancelled.")
+    
+    def _has_existing_config(self, provider: str) -> bool:
+        """
+        Check if provider already has configuration stored.
+        
+        Args:
+            provider: Provider name to check.
+            
+        Returns:
+            True if configuration exists, False otherwise.
+        """
+        try:
+            # Check if we can get existing credentials/config
+            existing_key = self.api_key_manager.get_provider_api_key(provider)
+            return bool(existing_key)
+        except Exception:
+            return False
+    
+    def _remove_provider_config(self, provider: str) -> None:
+        """
+        Remove configuration for a specific provider.
+        
+        Args:
+            provider: Provider name.
+            
+        Raises:
+            Exception: If removal fails.
+        """
+        config = get_provider_config(provider)
+        
+        # Try to remove from keyring
+        import keyring
+        try:
+            keyring.delete_password(config["keyring_service"], config["keyring_username"])
+        except Exception:
+            # If keyring deletion fails, it might not exist - that's OK
+            pass
 
 
 class QueryCommand(BaseCommand):
@@ -186,11 +481,12 @@ class QueryCommand(BaseCommand):
             provider: The AI provider to use.
         """
         if provider is None:
-            provider = DEFAULT_PROVIDER
+            # Try to get provider from config file first, then fall back to default
+            provider = self.config_manager.get_provider() or DEFAULT_PROVIDER
             
         try:
-            # Get API key for the provider
-            api_key = self.api_key_manager.ensure_provider_api_key(provider)
+            # Get credentials for the provider
+            credentials = self._get_provider_credentials(provider)
             
             # Get system information
             try:
@@ -199,7 +495,7 @@ class QueryCommand(BaseCommand):
                 system_info = "Unknown system"
             
             # Create provider instance and get command
-            ai_provider = create_provider(provider, api_key)
+            ai_provider = create_provider(provider, credentials)
             command = ai_provider.generate_command(question, system_info, model, debug)
             
             # Output the command
@@ -224,4 +520,62 @@ class QueryCommand(BaseCommand):
             sys.exit(1)
         except Exception as e:
             print(f"❌ Unexpected error: {e}", file=sys.stderr)
-            sys.exit(1) 
+            sys.exit(1)
+    
+    def _get_provider_credentials(self, provider: str):
+        """
+        Get credentials for the specified provider.
+        
+        Args:
+            provider: Provider name.
+            
+        Returns:
+            Provider-specific credentials.
+            
+        Raises:
+            APIKeyNotFoundError: If no credentials are configured.
+        """
+        if provider.lower() == "openai":
+            # For OpenAI, return API key directly
+            return self.api_key_manager.ensure_provider_api_key(provider)
+        elif provider.lower() == "ollama":
+            # For Ollama, get config from keyring, config file, or environment
+            import json
+            from .config import get_provider_config, get_provider_env_api_key
+            
+            try:
+                config = get_provider_config(provider)
+                
+                # Try to get from keyring first
+                import keyring
+                try:
+                    config_json = keyring.get_password(config["keyring_service"], config["keyring_username"])
+                    if config_json:
+                        keyring_config = json.loads(config_json)
+                        # Merge with config file settings
+                        file_config = self.config_manager.get_provider_config("ollama")
+                        return {**file_config, **keyring_config}
+                except Exception:
+                    pass
+                
+                # Try config file
+                file_config = self.config_manager.get_provider_config("ollama")
+                if file_config:
+                    return file_config
+                
+                # Fall back to environment variable
+                env_config = get_provider_env_api_key(provider)
+                if env_config:
+                    return json.loads(env_config)
+                
+                # If nothing found, raise error
+                raise APIKeyNotFoundError(
+                    f"No {provider} configuration found. "
+                    f"Run 'ai setup' to configure your provider, or set the {config['env_var']} environment variable."
+                )
+                
+            except json.JSONDecodeError:
+                raise APIKeyNotFoundError(f"Invalid {provider} configuration format.")
+        else:
+            # For other providers, use generic API key approach
+            return self.api_key_manager.ensure_provider_api_key(provider) 

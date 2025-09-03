@@ -6,6 +6,7 @@ from typing import Dict, Type, Optional
 
 from .base import AIProvider
 from .openai_provider import OpenAIProvider
+from .ollama_provider import OllamaProvider
 from ..exceptions import AICliError
 
 
@@ -20,6 +21,7 @@ class ProviderFactory:
     # Registry of available providers
     _providers: Dict[str, Type[AIProvider]] = {
         'openai': OpenAIProvider,
+        'ollama': OllamaProvider,
     }
 
     @classmethod
@@ -33,13 +35,13 @@ class ProviderFactory:
         return list(cls._providers.keys())
 
     @classmethod
-    def create_provider(cls, provider_name: str, api_key: str) -> AIProvider:
+    def create_provider(cls, provider_name: str, credentials) -> AIProvider:
         """
         Create a provider instance.
 
         Args:
             provider_name: Name of the provider (e.g., 'openai').
-            api_key: API key for the provider.
+            credentials: Credentials for the provider (API key, config dict, etc.).
 
         Returns:
             Provider instance.
@@ -57,7 +59,32 @@ class ProviderFactory:
             )
 
         provider_class = cls._providers[provider_name]
-        return provider_class(api_key)
+        return provider_class(credentials)
+
+    @classmethod
+    def get_provider_class(cls, provider_name: str) -> Type[AIProvider]:
+        """
+        Get a provider class (not instance).
+
+        Args:
+            provider_name: Name of the provider (e.g., 'openai').
+
+        Returns:
+            Provider class.
+
+        Raises:
+            UnsupportedProviderError: If provider is not supported.
+        """
+        provider_name = provider_name.lower()
+        
+        if provider_name not in cls._providers:
+            available = ', '.join(cls.get_available_providers())
+            raise UnsupportedProviderError(
+                f"Unsupported provider '{provider_name}'. "
+                f"Available providers: {available}"
+            )
+
+        return cls._providers[provider_name]
 
     @classmethod
     def register_provider(cls, name: str, provider_class: Type[AIProvider]) -> None:
@@ -71,14 +98,14 @@ class ProviderFactory:
         cls._providers[name.lower()] = provider_class
 
 
-# Convenience function
-def create_provider(provider_name: str, api_key: str) -> AIProvider:
+# Convenience functions
+def create_provider(provider_name: str, credentials) -> AIProvider:
     """
     Create a provider instance.
 
     Args:
         provider_name: Name of the provider (e.g., 'openai').
-        api_key: API key for the provider.
+        credentials: Credentials for the provider (API key, config dict, etc.).
 
     Returns:
         Provider instance.
@@ -86,4 +113,20 @@ def create_provider(provider_name: str, api_key: str) -> AIProvider:
     Raises:
         UnsupportedProviderError: If provider is not supported.
     """
-    return ProviderFactory.create_provider(provider_name, api_key)
+    return ProviderFactory.create_provider(provider_name, credentials)
+
+
+def get_provider_class(provider_name: str) -> Type[AIProvider]:
+    """
+    Get a provider class (not instance).
+
+    Args:
+        provider_name: Name of the provider (e.g., 'openai').
+
+    Returns:
+        Provider class.
+
+    Raises:
+        UnsupportedProviderError: If provider is not supported.
+    """
+    return ProviderFactory.get_provider_class(provider_name)

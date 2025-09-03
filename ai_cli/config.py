@@ -16,6 +16,13 @@ PROVIDER_CONFIG = {
         "env_var": "OPENAI_API_KEY",
         "keyring_service": "ai-cli-openai",
         "keyring_username": "api-key",
+    },
+    "ollama": {
+        "default_model": "llama2",
+        "default_url": "http://localhost:11434/api/generate",
+        "env_var": "OLLAMA_CONFIG",
+        "keyring_service": "ai-cli-ollama",
+        "keyring_username": "config",
     }
 }
 

@@ -48,9 +48,9 @@ def create_parser() -> argparse.ArgumentParser:
     setup_parser = subparsers.add_parser('setup', help='Configure AI provider API key')
     setup_parser.add_argument(
         "--provider",
-        default=DEFAULT_PROVIDER,
+        default=None,
         choices=ProviderFactory.get_available_providers(),
-        help=f"AI provider to configure (default: {DEFAULT_PROVIDER})"
+        help=f"AI provider to configure (default: prompt user to choose)"
     )
     
     # Status subcommand
@@ -76,9 +76,9 @@ def create_parser() -> argparse.ArgumentParser:
     )
     query_parser.add_argument(
         "--provider",
-        default=DEFAULT_PROVIDER,
+        default=None,
         choices=ProviderFactory.get_available_providers(),
-        help=f"AI provider to use (default: {DEFAULT_PROVIDER})"
+        help=f"AI provider to use (default: from config file or {DEFAULT_PROVIDER})"
     )
     query_parser.add_argument(
         "--debug", "-d",

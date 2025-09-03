@@ -3,11 +3,14 @@ OpenAI provider implementation for AI CLI.
 """
 
 import sys
+import getpass
+import keyring
 from openai import OpenAI
 from typing import Optional, List, Dict
 
 from .base import AIProvider, CommandOutput
 from ..exceptions import OpenAIAPIError, APIKeyInvalidError
+from ..config import get_provider_config, OPENAI_KEY_PREFIX, MIN_API_KEY_LENGTH
 
 
 class OpenAIProvider(AIProvider):
@@ -21,9 +24,82 @@ class OpenAIProvider(AIProvider):
             api_key: The OpenAI API key.
         """
         super().__init__(api_key)
+        self.api_key = api_key
         self.client = OpenAI(api_key=api_key)
 
-    def validate_api_key(self) -> None:
+    @classmethod
+    def setup_interactive(cls) -> 'OpenAIProvider':
+        """
+        Interactive setup for OpenAI provider.
+        
+        Returns:
+            Configured OpenAI provider instance.
+            
+        Raises:
+            KeyboardInterrupt: If user cancels setup.
+            APIKeyInvalidError: If API key is invalid.
+        """
+        config = get_provider_config("openai")
+        
+        print("Please enter your OpenAI API key.")
+        print("You can find your API key at: https://platform.openai.com/api-keys")
+        print()
+        
+        while True:
+            try:
+                api_key = getpass.getpass("OpenAI API Key: ").strip()
+                
+                if not api_key:
+                    print("❌ API key cannot be empty. Please try again.")
+                    continue
+                
+                # Basic validation
+                if len(api_key) < MIN_API_KEY_LENGTH:
+                    print(f"⚠️  Warning: API key too short (minimum {MIN_API_KEY_LENGTH} characters)")
+                    response = input("Continue anyway? (y/N): ").strip().lower()
+                    if response not in ['y', 'yes']:
+                        continue
+                
+                if not api_key.startswith(OPENAI_KEY_PREFIX):
+                    print(f"⚠️  Warning: API key should start with '{OPENAI_KEY_PREFIX}'")
+                    response = input("Continue anyway? (y/N): ").strip().lower()
+                    if response not in ['y', 'yes']:
+                        continue
+                
+                # Create instance and test API key
+                provider = cls(api_key)
+                print()
+                print("🔍 Testing API key...")
+                try:
+                    provider.validate_credentials()
+                    print("✅ API key is valid!")
+                except (APIKeyInvalidError, OpenAIAPIError) as e:
+                    print(f"❌ API key test failed: {e}")
+                    response = input("Store the key anyway? (y/N): ").strip().lower()
+                    if response not in ['y', 'yes']:
+                        print("Setup cancelled.")
+                        continue
+                
+                # Store the API key
+                try:
+                    keyring.set_password(config["keyring_service"], config["keyring_username"], api_key)
+                    print("✅ OpenAI API key stored securely in system keyring!")
+                except Exception as e:
+                    print(f"⚠️  Could not store API key in keyring: {e}")
+                    print(f"You can still use the {config['env_var']} environment variable as a fallback.")
+                
+                return provider
+                
+            except KeyboardInterrupt:
+                print("\nSetup cancelled.")
+                raise
+
+    @classmethod
+    def get_provider_display_name(cls) -> str:
+        """Get the display name of the provider for user prompts."""
+        return "OpenAI"
+
+    def validate_credentials(self) -> None:
         """
         Validate the API key by making a test call.
 

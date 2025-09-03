@@ -3,7 +3,7 @@ Base provider interface for AI CLI.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Dict, Any
 from pydantic import BaseModel
 
 
@@ -15,22 +15,48 @@ class CommandOutput(BaseModel):
 class AIProvider(ABC):
     """Abstract base class for AI providers."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, credentials: Any = None):
         """
-        Initialize the provider with an API key.
+        Initialize the provider with credentials.
 
         Args:
-            api_key: The API key for the provider.
+            credentials: Provider-specific credentials (API key, config dict, etc.).
         """
-        self.api_key = api_key
+        self.credentials = credentials
+
+    @classmethod
+    @abstractmethod
+    def setup_interactive(cls) -> 'AIProvider':
+        """
+        Interactive setup for this provider.
+        
+        Returns:
+            Configured provider instance.
+            
+        Raises:
+            KeyboardInterrupt: If user cancels setup.
+            APIKeyInvalidError: If credentials are invalid.
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def get_provider_display_name(cls) -> str:
+        """
+        Get the display name of the provider for user prompts.
+
+        Returns:
+            The provider display name (e.g., "OpenAI", "Ollama").
+        """
+        pass
 
     @abstractmethod
-    def validate_api_key(self) -> None:
+    def validate_credentials(self) -> None:
         """
-        Validate the API key by making a test call.
+        Validate the credentials by making a test call.
 
         Raises:
-            APIKeyInvalidError: If the API key is invalid.
+            APIKeyInvalidError: If the credentials are invalid.
             ProviderAPIError: If there's an API error.
         """
         pass
@@ -66,7 +92,7 @@ class AIProvider(ABC):
         Get the name of the provider.
 
         Returns:
-            The provider name (e.g., "OpenAI", "Claude").
+            The provider name (e.g., "OpenAI", "Ollama").
         """
         pass
 
