@@ -93,13 +93,12 @@ class OllamaProvider(AIProvider):
                 print("Setup cancelled.")
                 raise KeyboardInterrupt()
         
-        # Store the configuration
+        # Store the configuration in the config file only (no sensitive data)
         try:
-            config_json = json.dumps(ollama_config)
-            keyring.set_password(config["keyring_service"], config["keyring_username"], config_json)
-            print("✅ Ollama configuration stored securely in system keyring!")
+            config_manager.set_provider_config("ollama", ollama_config)
+            print("✅ Ollama configuration stored in configuration file!")
         except Exception as e:
-            print(f"⚠️  Could not store configuration in keyring: {e}")
+            print(f"⚠️  Could not store configuration in file: {e}")
             print(f"You can still use the {config['env_var']} environment variable as a fallback.")
         
         return provider

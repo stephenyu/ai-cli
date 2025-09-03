@@ -124,22 +124,30 @@ class SetupCommand(BaseCommand):
     
     def _has_existing_config(self, provider: str) -> bool:
         """
-        Check if provider already has configuration stored in keyring (not env vars).
+        Check if provider already has configuration stored (not env vars).
         
         Args:
             provider: Provider name to check.
             
         Returns:
-            True if configuration exists in keyring, False otherwise.
+            True if configuration exists, False otherwise.
         """
-        try:
-            # Only check keyring, not environment variables
-            config = get_provider_config(provider)
-            import keyring
-            existing_key = keyring.get_password(config["keyring_service"], config["keyring_username"])
-            return bool(existing_key)
-        except Exception:
-            return False
+        if provider.lower() == "ollama":
+            # For Ollama, check config file only (no keyring)
+            try:
+                file_config = self.config_manager.get_provider_config("ollama")
+                return bool(file_config)
+            except Exception:
+                return False
+        else:
+            try:
+                # For other providers, check keyring only
+                config = get_provider_config(provider)
+                import keyring
+                existing_key = keyring.get_password(config["keyring_service"], config["keyring_username"])
+                return bool(existing_key)
+            except Exception:
+                return False
     
     def _save_provider_settings(self, provider: str, provider_instance) -> None:
         """
@@ -237,35 +245,19 @@ class StatusCommand(BaseCommand):
                 print("❌ No OPENAI_API_KEY environment variable")
                 
         elif provider.lower() == "ollama":
-            # For Ollama, check configuration instead of API keys
+            # For Ollama, check configuration (no keyring storage)
             import json
             from .config import get_provider_config, get_provider_env_api_key
             
             has_config = False
             
             try:
-                config = get_provider_config(provider)
-                
-                # Check keyring configuration
-                try:
-                    import keyring
-                    config_json = keyring.get_password(config["keyring_service"], config["keyring_username"])
-                    if config_json:
-                        keyring_config = json.loads(config_json)
-                        print("✅ Ollama configuration (keyring):")
-                        for key, value in keyring_config.items():
-                            print(f"   {key}: {value}")
-                        has_config = True
-                except Exception:
-                    pass
-                
-                # Check config file
+                # Check config file first
                 file_config = self.config_manager.get_provider_config("ollama")
                 if file_config:
-                    if not has_config:
-                        print("✅ Ollama configuration (config file):")
-                        for key, value in file_config.items():
-                            print(f"   {key}: {value}")
+                    print("✅ Ollama configuration (config file):")
+                    for key, value in file_config.items():
+                        print(f"   {key}: {value}")
                     has_config = True
                 
                 # Check environment variable
@@ -279,6 +271,7 @@ class StatusCommand(BaseCommand):
                                 print(f"   {key}: {value}")
                         has_config = True
                     except json.JSONDecodeError:
+                        config = get_provider_config(provider)
                         print(f"⚠️  Invalid {config['env_var']} format")
                 
                 if not has_config:
@@ -312,21 +305,10 @@ class StatusCommand(BaseCommand):
         if provider.lower() == "openai":
             return bool(self.api_key_manager.get_api_key())
         elif provider.lower() == "ollama":
-            # For Ollama, check if we have any configuration
+            # For Ollama, check if we have configuration (no keyring check)
             try:
-                from .config import get_provider_config, get_provider_env_api_key
+                from .config import get_provider_env_api_key
                 import json
-                
-                config = get_provider_config(provider)
-                
-                # Check keyring
-                try:
-                    import keyring
-                    config_json = keyring.get_password(config["keyring_service"], config["keyring_username"])
-                    if config_json:
-                        return True
-                except Exception:
-                    pass
                 
                 # Check config file
                 file_config = self.config_manager.get_provider_config("ollama")
@@ -438,12 +420,36 @@ class ResetCommand(BaseCommand):
         Returns:
             True if configuration exists, False otherwise.
         """
-        try:
-            # Check if we can get existing credentials/config
-            existing_key = self.api_key_manager.get_provider_api_key(provider)
-            return bool(existing_key)
-        except Exception:
-            return False
+        if provider.lower() == "ollama":
+            # For Ollama, check config file and environment variable only
+            try:
+                import json
+                from .config import get_provider_env_api_key
+                
+                # Check config file
+                file_config = self.config_manager.get_provider_config("ollama")
+                if file_config:
+                    return True
+                
+                # Check environment variable
+                env_config = get_provider_env_api_key(provider)
+                if env_config:
+                    try:
+                        json.loads(env_config)
+                        return True
+                    except json.JSONDecodeError:
+                        pass
+                
+                return False
+            except Exception:
+                return False
+        else:
+            try:
+                # Check if we can get existing credentials/config
+                existing_key = self.api_key_manager.get_provider_api_key(provider)
+                return bool(existing_key)
+            except Exception:
+                return False
     
     def _remove_provider_config(self, provider: str) -> None:
         """
@@ -457,13 +463,23 @@ class ResetCommand(BaseCommand):
         """
         config = get_provider_config(provider)
         
-        # Try to remove from keyring
-        import keyring
-        try:
-            keyring.delete_password(config["keyring_service"], config["keyring_username"])
-        except Exception:
-            # If keyring deletion fails, it might not exist - that's OK
-            pass
+        if provider.lower() == "ollama":
+            # For Ollama, remove from config file only
+            # But also clean up any legacy keyring entries
+            import keyring
+            try:
+                keyring.delete_password(config["keyring_service"], config["keyring_username"])
+            except Exception:
+                # If keyring deletion fails, it might not exist - that's OK
+                pass
+        else:
+            # For other providers, remove from keyring
+            import keyring
+            try:
+                keyring.delete_password(config["keyring_service"], config["keyring_username"])
+            except Exception:
+                # If keyring deletion fails, it might not exist - that's OK
+                pass
 
 
 class QueryCommand(BaseCommand):
@@ -539,26 +555,14 @@ class QueryCommand(BaseCommand):
             # For OpenAI, return API key directly
             return self.api_key_manager.ensure_provider_api_key(provider)
         elif provider.lower() == "ollama":
-            # For Ollama, get config from keyring, config file, or environment
+            # For Ollama, get config from config file or environment (no keyring)
             import json
             from .config import get_provider_config, get_provider_env_api_key
             
             try:
                 config = get_provider_config(provider)
                 
-                # Try to get from keyring first
-                import keyring
-                try:
-                    config_json = keyring.get_password(config["keyring_service"], config["keyring_username"])
-                    if config_json:
-                        keyring_config = json.loads(config_json)
-                        # Merge with config file settings
-                        file_config = self.config_manager.get_provider_config("ollama")
-                        return {**file_config, **keyring_config}
-                except Exception:
-                    pass
-                
-                # Try config file
+                # Try config file first
                 file_config = self.config_manager.get_provider_config("ollama")
                 if file_config:
                     return file_config
