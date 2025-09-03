@@ -5,10 +5,21 @@ Configuration constants and settings for AI CLI.
 import os
 from typing import Optional
 
-# Default OpenAI model to use
+# Default provider and model
+DEFAULT_PROVIDER = "openai"
 DEFAULT_MODEL = "gpt-4.1-nano-2025-04-14"
 
-# Keyring service name for storing API key
+# Provider configurations
+PROVIDER_CONFIG = {
+    "openai": {
+        "default_model": "gpt-4.1-nano-2025-04-14",
+        "env_var": "OPENAI_API_KEY",
+        "keyring_service": "ai-cli-openai",
+        "keyring_username": "api-key",
+    }
+}
+
+# Legacy keyring settings for backwards compatibility
 KEYRING_SERVICE = "ai-cli"
 KEYRING_USERNAME = "openai-api-key"
 
@@ -45,4 +56,39 @@ ENV_API_KEY = "OPENAI_API_KEY"
 
 def get_env_api_key() -> Optional[str]:
     """Get API key from environment variable."""
-    return os.getenv(ENV_API_KEY) 
+    return os.getenv(ENV_API_KEY)
+
+
+def get_provider_config(provider_name: str) -> dict:
+    """
+    Get configuration for a specific provider.
+    
+    Args:
+        provider_name: Name of the provider.
+        
+    Returns:
+        Provider configuration dictionary.
+        
+    Raises:
+        KeyError: If provider is not configured.
+    """
+    if provider_name not in PROVIDER_CONFIG:
+        raise KeyError(f"Provider '{provider_name}' not configured")
+    return PROVIDER_CONFIG[provider_name]
+
+
+def get_provider_env_api_key(provider_name: str) -> Optional[str]:
+    """
+    Get API key from environment variable for specific provider.
+    
+    Args:
+        provider_name: Name of the provider.
+        
+    Returns:
+        API key if found, None otherwise.
+    """
+    try:
+        config = get_provider_config(provider_name)
+        return os.getenv(config["env_var"])
+    except KeyError:
+        return None 

@@ -8,6 +8,7 @@ Convert natural language questions to terminal commands using OpenAI.
 - 🔒 Secure API key storage using system keyring
 - 📋 Copy commands to clipboard
 - 🖥️ Cross-platform support (macOS, Linux, Windows/WSL)
+- 🔍 Context-aware command generation based on your system's available tools
 - ⚡ Fast and simple to use
 
 ## Installation
@@ -227,6 +228,22 @@ After creating a GitHub release, update the Homebrew formula:
 - [ ] GitHub release published
 - [ ] Homebrew formula updated
 - [ ] Release notes documented
+
+## How It Works
+
+AI CLI provides context-aware command generation by automatically gathering information about your system:
+
+- **Operating System**: Detects your OS and kernel version using `uname -a`
+- **Shell Environment**: Identifies your current shell from `$SHELL` variable
+- **Available Tools**: Checks for common development tools and their versions:
+  - **Node.js**: Detects `node` command and version
+  - **Python**: Finds `python3` or `python` command and version
+  - **Lua**: Checks for `lua` command and version
+
+This context helps the AI generate more accurate commands. For example:
+- Uses `python3` instead of `python` if only Python 3 is available
+- Suggests Node.js commands only when Node.js is installed
+- Provides shell-specific syntax when needed
 
 ## Configuration
 

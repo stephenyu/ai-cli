@@ -80,8 +80,8 @@ class AiCli < Formula
   end
 
   resource "openai" do
-    url "https://files.pythonhosted.org/packages/3f/19/6b09bb3132f7e1a7a2291fd46fb33659bbccca041f863abd682e14ba86d7/openai-1.82.0.tar.gz"
-    sha256 "b0a009b9a58662d598d07e91e4219ab4b1e3d8ba2db3f173896a92b9b874d1a7"
+    url "https://files.pythonhosted.org/packages/5e/53/fd5318cd79202744711c120f008d9bd987eacc063b15910a820bc9b9f40e/openai-1.82.1.tar.gz"
+    sha256 "ffc529680018e0417acac85f926f92aa0bbcbc26e82e2621087303c66bc7f95d"
   end
 
   resource "pydantic" do

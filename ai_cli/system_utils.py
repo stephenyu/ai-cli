@@ -2,6 +2,7 @@
 System utilities for AI CLI.
 """
 
+import os
 import shutil
 import subprocess
 from typing import Optional
@@ -15,29 +16,92 @@ class SystemUtils:
     
     def get_system_info(self) -> str:
         """
-        Get system information using uname -a to help the AI target the correct platform.
+        Get comprehensive system information including OS details, shell, and available tools.
         
         Returns:
-            System information string.
+            System information string with OS details, shell, and tool availability.
             
         Raises:
             SystemInfoError: If system information cannot be retrieved.
         """
         try:
+            # Get base system info
             result = subprocess.run(
                 ['uname', '-a'], 
                 capture_output=True, 
                 text=True, 
                 timeout=5
             )
-            if result.returncode == 0:
-                return result.stdout.strip()
-            else:
+            if result.returncode != 0:
                 raise SystemInfoError("uname command failed")
+            
+            system_info = result.stdout.strip()
+            
+            # Get shell information
+            shell = os.environ.get('SHELL', 'unknown')
+            
+            # Check for available tools and their versions
+            tools_info = []
+            
+            # Check Node.js
+            node_info = self._get_tool_version('node', ['--version'])
+            tools_info.append(f"Node: {node_info}")
+            
+            # Check Python (try python3 first, then python)
+            python_info = self._get_tool_version('python3', ['--version'])
+            if python_info == 'not installed':
+                python_info = self._get_tool_version('python', ['--version'])
+                if python_info != 'not installed':
+                    python_info = f"python {python_info.split(' ', 1)[1]}"  # Remove 'Python' prefix
+            else:
+                python_info = f"python3 {python_info.split(' ', 1)[1]}"  # Remove 'Python' prefix
+            tools_info.append(f"Python: {python_info}")
+            
+            # Check Lua
+            lua_info = self._get_tool_version('lua', ['-v'])
+            tools_info.append(f"Lua: {lua_info}")
+            
+            # Format the complete system information
+            return f"""System: {system_info}
+Shell: {shell}
+{chr(10).join(tools_info)}"""
+            
         except subprocess.TimeoutExpired:
             raise SystemInfoError("uname command timed out")
         except (subprocess.SubprocessError, FileNotFoundError) as e:
             raise SystemInfoError(f"Failed to get system info: {e}")
+    
+    def _get_tool_version(self, tool: str, version_args: list) -> str:
+        """
+        Get version information for a specific tool.
+        
+        Args:
+            tool: The command name to check.
+            version_args: Arguments to get version (e.g., ['--version']).
+            
+        Returns:
+            Version string if available, 'not installed' otherwise.
+        """
+        if not shutil.which(tool):
+            return 'not installed'
+        
+        try:
+            result = subprocess.run(
+                [tool] + version_args,
+                capture_output=True,
+                text=True,
+                timeout=3
+            )
+            if result.returncode == 0:
+                # Get first line and clean it up
+                version_line = result.stdout.strip().split('\n')[0]
+                return version_line
+            else:
+                # Some tools output version to stderr (like lua -v)
+                version_line = result.stderr.strip().split('\n')[0] if result.stderr else 'version unknown'
+                return version_line
+        except (subprocess.SubprocessError, subprocess.TimeoutExpired):
+            return f'{tool} installed (version unknown)'
     
     def copy_to_clipboard(self, text: str) -> None:
         """

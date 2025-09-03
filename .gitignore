@@ -52,3 +52,4 @@ MANIFEST
 *.tmp
 *.temp
 REFACTORING_NOTES.md
+.mcp.json

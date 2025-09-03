@@ -7,9 +7,19 @@ Refactored main module using modular architecture.
 
 import argparse
 import sys
+from importlib.metadata import version, PackageNotFoundError
 
-from .config import DEFAULT_MODEL
+from .config import DEFAULT_MODEL, DEFAULT_PROVIDER
 from .commands import SetupCommand, StatusCommand, ResetCommand, QueryCommand
+from .providers.factory import ProviderFactory
+
+
+def get_version() -> str:
+    """Get the version of the ai-cli package."""
+    try:
+        return version("ai-cli")
+    except PackageNotFoundError:
+        return "unknown"
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -24,11 +34,24 @@ def create_parser() -> argparse.ArgumentParser:
         prog="ai"
     )
     
+    # Add version flag
+    parser.add_argument(
+        "-V", "--version",
+        action="version",
+        version=f"ai-cli {get_version()}"
+    )
+    
     # Create subparsers for different commands
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Setup subcommand
-    subparsers.add_parser('setup', help='Configure OpenAI API key')
+    setup_parser = subparsers.add_parser('setup', help='Configure AI provider API key')
+    setup_parser.add_argument(
+        "--provider",
+        default=DEFAULT_PROVIDER,
+        choices=ProviderFactory.get_available_providers(),
+        help=f"AI provider to configure (default: {DEFAULT_PROVIDER})"
+    )
     
     # Status subcommand
     subparsers.add_parser('status', help='Show configuration status')
@@ -49,8 +72,18 @@ def create_parser() -> argparse.ArgumentParser:
     )
     query_parser.add_argument(
         "--model",
-        default=DEFAULT_MODEL,
-        help=f"OpenAI model to use (default: {DEFAULT_MODEL})"
+        help="Model to use (uses provider default if not specified)"
+    )
+    query_parser.add_argument(
+        "--provider",
+        default=DEFAULT_PROVIDER,
+        choices=ProviderFactory.get_available_providers(),
+        help=f"AI provider to use (default: {DEFAULT_PROVIDER})"
+    )
+    query_parser.add_argument(
+        "--debug", "-d",
+        action="store_true",
+        help="Show debug information including the conversation sent to the AI provider"
     )
     
     return parser
@@ -68,6 +101,11 @@ def handle_implicit_query(args: list) -> list:
     """
     if len(args) == 1:
         return args  # Just the program name, let parser handle help
+    
+    # Don't modify arguments if they contain version flags or help flags
+    version_flags = {'-V', '--version', '-h', '--help'}
+    if any(arg in version_flags for arg in args[1:]):
+        return args
     
     # If first argument doesn't look like a subcommand, treat it as a query
     known_commands = {'setup', 'status', 'reset', 'query'}
@@ -97,7 +135,7 @@ def main():
     # Route to appropriate command handler
     try:
         if args.command == 'setup':
-            SetupCommand().execute()
+            SetupCommand().execute(provider=args.provider)
         elif args.command == 'status':
             StatusCommand().execute()
         elif args.command == 'reset':
@@ -106,7 +144,9 @@ def main():
             QueryCommand().execute(
                 question=args.question,
                 copy_to_clipboard=args.copy,
-                model=args.model
+                model=args.model,
+                debug=args.debug,
+                provider=args.provider
             )
         else:
             parser.print_help()
