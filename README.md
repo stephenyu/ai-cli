@@ -1,15 +1,17 @@
 # AI CLI
 
-Convert natural language questions to terminal commands using OpenAI.
+Convert natural language questions to terminal commands using AI providers (OpenAI, Ollama).
 
 ## Features
 
-- 🤖 Uses OpenAI's latest models to generate terminal commands
-- 🔒 Secure API key storage using system keyring
-- 📋 Copy commands to clipboard
-- 🖥️ Cross-platform support (macOS, Linux, Windows/WSL)
-- 🔍 Context-aware command generation based on your system's available tools
-- ⚡ Fast and simple to use
+- 🤖 **Multiple AI Providers** - Support for OpenAI and Ollama (local LLM)
+- 🔒 **Secure Storage** - API keys stored securely using system keyring
+- 📋 **Clipboard Integration** - Copy commands to clipboard with `-c` flag
+- 🖥️ **Cross-Platform** - Works on macOS, Linux, Windows/WSL
+- 🔍 **Context-Aware** - Command generation based on your system's available tools
+- 🐛 **Debug Mode** - See the full conversation sent to the AI provider
+- ⚡ **Fast & Simple** - Quick setup and intuitive usage
+- 🔧 **Provider Selection** - Choose your preferred AI provider during setup or per query
 
 ## Installation
 
@@ -83,18 +85,34 @@ pytest --cov=ai_cli
 
 ## Setup
 
-After installation, configure your OpenAI API key:
+After installation, configure your AI provider:
 
 ```bash
 ai setup
 ```
 
 This will:
-1. Prompt for your OpenAI API key
-2. Test the API key
-3. Store it securely in your system keyring
+1. Let you choose between OpenAI and Ollama providers
+2. Prompt for your API key or configuration
+3. Test the connection
+4. Store credentials securely in your system keyring
 
-Get your API key from: https://platform.openai.com/api-keys
+### Provider-Specific Setup
+
+**OpenAI:**
+- Get your API key from: https://platform.openai.com/api-keys
+- Setup will prompt for API key and test connectivity
+
+**Ollama:**
+- Install Ollama locally: https://ollama.ai/
+- Ensure Ollama is running: `ollama serve`
+- Setup will configure connection to local Ollama instance
+
+You can also specify the provider during setup:
+```bash
+ai setup --provider openai
+ai setup --provider ollama
+```
 
 ## Usage
 
@@ -119,7 +137,7 @@ ai -c "compress this directory"
 # ✅ Command copied to clipboard! Paste and press Enter to execute.
 ```
 
-### Other commands
+### Advanced options
 
 ```bash
 # Check configuration status
@@ -129,7 +147,16 @@ ai status
 ai reset
 
 # Use a specific model
-ai --model gpt-4 "your question"
+ai --model gpt-4o "your question"
+
+# Use a different provider
+ai --provider ollama "your question"
+
+# Debug mode (show full conversation)
+ai --debug "your question"
+
+# Combine options
+ai --provider openai --model gpt-4o --copy --debug "compress this directory"
 ```
 
 ## Examples
@@ -247,18 +274,37 @@ This context helps the AI generate more accurate commands. For example:
 
 ## Configuration
 
-The AI CLI stores your OpenAI API key securely using your system's keyring:
+The AI CLI stores your provider credentials securely using your system's keyring:
 
 - **macOS**: Keychain
 - **Linux**: Secret Service API (GNOME Keyring, KDE Wallet, etc.)
 - **Windows**: Windows Credential Locker
 
-You can also use the `OPENAI_API_KEY` environment variable as a fallback.
+### Environment Variables
+
+You can also use environment variables as fallbacks:
+
+- **OpenAI**: `OPENAI_API_KEY` - Your OpenAI API key
+- **Ollama**: `OLLAMA_CONFIG` - JSON configuration for Ollama (optional)
+
+### Provider Configuration
+
+**OpenAI:**
+- Requires API key from https://platform.openai.com/api-keys
+- Default model: `gpt-4.1-nano-2025-04-14`
+- Supports all OpenAI chat models
+
+**Ollama:**
+- Requires local Ollama installation
+- Default URL: `http://localhost:11434/api/generate`
+- Default model: `llama2`
+- Supports any model available in your Ollama instance
 
 ## Requirements
 
 - Python 3.8+
-- OpenAI API key
+- **For OpenAI**: API key from https://platform.openai.com/api-keys
+- **For Ollama**: Local Ollama installation (https://ollama.ai/)
 
 ## License
 

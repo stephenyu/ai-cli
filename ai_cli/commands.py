@@ -225,9 +225,9 @@ class StatusCommand(BaseCommand):
             provider: The provider name to check.
         """
         if provider.lower() == "openai":
-            # Check keyring storage
+            # Check keyring storage (using provider-specific method)
             try:
-                stored_key = self.api_key_manager.get_api_key()
+                stored_key = self.api_key_manager.get_provider_api_key(provider)
                 if stored_key:
                     masked_key = self.api_key_manager.get_masked_key(stored_key)
                     print(f"✅ API Key (keyring): {masked_key}")
@@ -303,7 +303,7 @@ class StatusCommand(BaseCommand):
             True if the provider is configured and ready.
         """
         if provider.lower() == "openai":
-            return bool(self.api_key_manager.get_api_key())
+            return bool(self.api_key_manager.get_provider_api_key(provider))
         elif provider.lower() == "ollama":
             # For Ollama, check if we have configuration (no keyring check)
             try:
