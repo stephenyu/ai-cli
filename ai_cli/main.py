@@ -8,7 +8,7 @@ Refactored main module using modular architecture.
 import argparse
 import sys
 
-from .config import DEFAULT_MODEL
+from .config import PROVIDERS
 from .commands import SetupCommand, StatusCommand, ResetCommand, QueryCommand
 
 
@@ -28,7 +28,20 @@ def create_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Setup subcommand
-    subparsers.add_parser('setup', help='Configure OpenAI API key')
+    setup_parser = subparsers.add_parser('setup', help='Configure AI provider and API key')
+    setup_parser.add_argument(
+        "--provider",
+        choices=list(PROVIDERS.keys()),
+        help="AI provider to configure (defaults to the currently active one)"
+    )
+    setup_parser.add_argument(
+        "--model",
+        help="Model to use for the selected provider (defaults to that provider's model)"
+    )
+    setup_parser.add_argument(
+        "--api-key",
+        help="API key to store; passing this enables non-interactive setup"
+    )
     
     # Status subcommand
     subparsers.add_parser('status', help='Show configuration status')
@@ -49,8 +62,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
     query_parser.add_argument(
         "--model",
-        default=DEFAULT_MODEL,
-        help=f"OpenAI model to use (default: {DEFAULT_MODEL})"
+        default=None,
+        help="Model to use (default: the active provider's configured model)"
     )
     
     return parser
@@ -97,7 +110,11 @@ def main():
     # Route to appropriate command handler
     try:
         if args.command == 'setup':
-            SetupCommand().execute()
+            SetupCommand().execute(
+                provider=args.provider,
+                model=args.model,
+                api_key=args.api_key
+            )
         elif args.command == 'status':
             StatusCommand().execute()
         elif args.command == 'reset':

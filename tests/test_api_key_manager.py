@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from ai_cli.api_key_manager import APIKeyManager
+from ai_cli.config import PROVIDER_CLAUDE, PROVIDER_OPENROUTER
 from ai_cli.exceptions import APIKeyError, APIKeyInvalidError, APIKeyNotFoundError
 
 
@@ -100,4 +101,32 @@ class TestAPIKeyManager:
         """Test ensure_api_key when no key is available."""
         with patch.object(self.manager, 'get_api_key', return_value=None):
             with pytest.raises(APIKeyNotFoundError):
-                self.manager.ensure_api_key() 
+                self.manager.ensure_api_key()
+
+    def test_ensure_api_key_not_found_names_providers_env_var(self):
+        """Test ensure_api_key error names the active provider's env var."""
+        with patch.object(self.manager, 'get_api_key', return_value=None):
+            with pytest.raises(APIKeyNotFoundError, match="ANTHROPIC_API_KEY"):
+                self.manager.ensure_api_key(PROVIDER_CLAUDE)
+
+    def test_validate_api_key_claude_prefix(self):
+        """Test validation of a Claude-shaped key against the claude provider."""
+        valid_key = "sk-ant-1234567890123456789012345678901234567890"
+        self.manager.validate_api_key(valid_key, PROVIDER_CLAUDE)  # should not raise
+
+    def test_validate_api_key_claude_rejects_openai_prefix(self):
+        """An OpenAI-shaped key should fail validation for the claude provider."""
+        openai_key = "sk-1234567890123456789012345678901234567890"
+        with pytest.raises(APIKeyInvalidError, match="should start with"):
+            self.manager.validate_api_key(openai_key, PROVIDER_CLAUDE)
+
+    def test_validate_api_key_openrouter_prefix(self):
+        """Test validation of an OpenRouter-shaped key."""
+        valid_key = "sk-or-1234567890123456789012345678901234567890"
+        self.manager.validate_api_key(valid_key, PROVIDER_OPENROUTER)  # should not raise
+
+    def test_prompt_for_api_key_uses_provider_label(self):
+        """The getpass prompt should reflect the given provider's label."""
+        with patch('ai_cli.api_key_manager.getpass.getpass', return_value="sk-ant-1234567890123456789012345678901234567890") as mock_getpass:
+            self.manager.prompt_for_api_key(PROVIDER_CLAUDE)
+            mock_getpass.assert_called_once_with("Claude API Key: ") 

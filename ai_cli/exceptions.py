@@ -33,9 +33,29 @@ class SystemInfoError(AICliError):
     pass
 
 
-class OpenAIAPIError(AICliError):
-    """Raised when OpenAI API calls fail."""
-    
+class UnknownProviderError(AICliError):
+    """Raised when a provider name isn't one of the registered providers."""
+    pass
+
+
+class ProviderAPIError(AICliError):
+    """Raised when an AI provider's API call fails."""
+
     def __init__(self, message: str, original_error: Exception = None):
         super().__init__(message)
-        self.original_error = original_error 
+        self.original_error = original_error
+
+
+class OpenAIAPIError(ProviderAPIError):
+    """Raised when OpenAI API calls fail."""
+    pass
+
+
+class ClaudeAPIError(ProviderAPIError):
+    """Raised when Claude (Anthropic) API calls fail."""
+    pass
+
+
+class OpenRouterAPIError(ProviderAPIError):
+    """Raised when OpenRouter API calls fail."""
+    pass 
