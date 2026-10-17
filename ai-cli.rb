@@ -3,8 +3,8 @@ class AiCli < Formula
 
   desc "Convert natural language questions to terminal commands using AI"
   homepage "https://github.com/stephenyu/ai-cli"
-  url "https://github.com/stephenyu/ai-cli/archive/refs/tags/v0.4.0.tar.gz"
-  sha256 "9737534432328c16ac3e41f52dc3e8bc5dde6bd6f8af63e7f401d9c97bc6dbe2"
+  url "https://github.com/stephenyu/ai-cli/archive/refs/tags/v0.4.1.tar.gz"
+  sha256 "9f538c171003579a0b21e669e58aa7c8fc7960d46144531109674fa3ddbff226"
   license "MIT"
 
   depends_on "rust" => :build
@@ -126,7 +126,7 @@ class AiCli < Formula
 
   test do
     # Test that the package was installed correctly
-    assert_match "0.4.0", shell_output("#{bin}/ai --version 2>&1")
+    assert_match "0.4.1", shell_output("#{bin}/ai --version 2>&1")
 
     # Test that help command works
     help_output = shell_output("#{bin}/ai --help")
