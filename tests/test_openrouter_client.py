@@ -22,13 +22,16 @@ def test_validate_api_key_success(mock_openai_cls):
     client = OpenRouterClient("sk-or-test")
     client.validate_api_key()  # should not raise
 
-    mock_client.models.list.assert_called_once()
+    # /key is the authenticated endpoint - /models is public and would
+    # validate nothing.
+    mock_client.get.assert_called_once_with("/key", cast_to=dict)
+    mock_client.models.list.assert_not_called()
 
 
 @patch("ai_cli.openrouter_client.OpenAI")
 def test_validate_api_key_invalid(mock_openai_cls):
     mock_client = MagicMock()
-    mock_client.models.list.side_effect = Exception("Unauthorized request")
+    mock_client.get.side_effect = Exception("Unauthorized request")
     mock_openai_cls.return_value = mock_client
 
     client = OpenRouterClient("sk-or-bad")

@@ -31,12 +31,17 @@ class OpenRouterClient(BaseAIClient):
         """
         Validate the API key by making a test call.
 
+        Note: OpenRouter's /models endpoint is public and requires no
+        authentication, so it can't be used to validate a key (any key,
+        valid or not, gets a 200). /key is OpenRouter's authenticated
+        endpoint for key info, so it's used here instead.
+
         Raises:
             APIKeyInvalidError: If the API key is invalid.
             OpenRouterAPIError: If there's an API error.
         """
         try:
-            self.client.models.list()
+            self.client.get("/key", cast_to=dict)
         except Exception as e:
             if "authentication" in str(e).lower() or "unauthorized" in str(e).lower():
                 raise APIKeyInvalidError(f"Invalid API key: {e}") from e
