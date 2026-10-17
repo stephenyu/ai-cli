@@ -3,7 +3,7 @@
 # Script to generate SHA256 for v0.2.0 release tarball
 # This will be needed for the Homebrew formula
 
-VERSION="0.3.0"
+VERSION="0.4.0"
 URL="https://github.com/stephenyu/ai-cli/archive/v${VERSION}.tar.gz"
 
 echo "Downloading release tarball for v${VERSION}..."

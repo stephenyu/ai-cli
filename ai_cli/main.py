@@ -8,6 +8,7 @@ Refactored main module using modular architecture.
 import argparse
 import sys
 
+from . import __version__
 from .config import PROVIDERS
 from .commands import SetupCommand, StatusCommand, ResetCommand, QueryCommand
 
@@ -23,7 +24,12 @@ def create_parser() -> argparse.ArgumentParser:
         description="Convert natural language questions to terminal commands using AI",
         prog="ai"
     )
-    
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}"
+    )
+
     # Create subparsers for different commands
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
@@ -81,13 +87,16 @@ def handle_implicit_query(args: list) -> list:
     """
     if len(args) == 1:
         return args  # Just the program name, let parser handle help
-    
-    # If first argument doesn't look like a subcommand, treat it as a query
+
+    # If first argument doesn't look like a subcommand, treat it as a query.
+    # Top-level flags like --help/--version must be left alone so the main
+    # parser (not the query subparser) handles them.
     known_commands = {'setup', 'status', 'reset', 'query'}
-    if args[1] not in known_commands:
+    top_level_flags = {'-h', '--help', '--version'}
+    if args[1] not in known_commands and args[1] not in top_level_flags:
         # Insert 'query' as the first argument
         return args[:1] + ['query'] + args[1:]
-    
+
     return args
 
 
