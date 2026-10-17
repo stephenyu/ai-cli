@@ -35,7 +35,7 @@ OpenRouter instead.
   live test call; a failed live call (e.g. network down) warns but doesn't
   block saving.
 - OpenRouter's model field is free text (vendor-prefixed slugs, e.g.
-  `anthropic/claude-3.5-haiku`) — no fixed allowlist; a bad id surfaces as
+  `anthropic/claude-haiku-4.5`) — no fixed allowlist; a bad id surfaces as
   an API error at call time.
 - `ai status` reports active provider + model + "key present," with no
   live API call — instant, no network dependency.

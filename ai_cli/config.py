@@ -88,7 +88,7 @@ PROVIDERS = {
     PROVIDER_OPENROUTER: ProviderSpec(
         name=PROVIDER_OPENROUTER,
         label="OpenRouter",
-        default_model="anthropic/claude-3.5-haiku",
+        default_model="anthropic/claude-haiku-4.5",
         key_prefix="sk-or-",
         env_var="OPENROUTER_API_KEY",
         key_url="https://openrouter.ai/keys",

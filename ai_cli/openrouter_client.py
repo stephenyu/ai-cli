@@ -56,7 +56,7 @@ class OpenRouterClient(BaseAIClient):
         Args:
             question: The user's natural language question.
             system_info: System information for context.
-            model: The OpenRouter model slug to use (e.g. "anthropic/claude-3.5-haiku").
+            model: The OpenRouter model slug to use (e.g. "anthropic/claude-haiku-4.5").
 
         Returns:
             The generated terminal command.

@@ -109,7 +109,7 @@ For scripting, pass the provider, key, and (optionally) model as flags:
 
 ```bash
 ai setup --provider claude --api-key sk-ant-... --model claude-haiku-4-5-20251001
-ai setup --provider openrouter --api-key sk-or-... --model anthropic/claude-3.5-haiku
+ai setup --provider openrouter --api-key sk-or-... --model anthropic/claude-haiku-4.5
 ```
 
 ## Usage

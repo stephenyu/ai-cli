@@ -16,7 +16,7 @@ as an environment-variable fallback.
 Users want to configure Claude (Anthropic) or OpenRouter as alternatives.
 OpenRouter in particular is not itself a model — it's a gateway that
 proxies to many vendors' models by slug (e.g.
-`anthropic/claude-3.5-haiku`), so "provider" and "model" are necessarily
+`anthropic/claude-haiku-4.5`), so "provider" and "model" are necessarily
 separate axes once more than one provider exists.
 
 ## Decision

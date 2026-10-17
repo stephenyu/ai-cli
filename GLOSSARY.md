@@ -31,5 +31,5 @@ including the API key stored for it — see
 
 The model id ai-cli will ask the active provider for. Free text — there
 is no fixed allowlist, since OpenRouter's catalog of model slugs (e.g.
-`anthropic/claude-3.5-haiku`) changes independently of this codebase. Each
+`anthropic/claude-haiku-4.5`) changes independently of this codebase. Each
 provider has a default model used when the user hasn't overridden it.
