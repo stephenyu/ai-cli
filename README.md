@@ -1,10 +1,10 @@
 # AI CLI
 
-Convert natural language questions to terminal commands using OpenAI.
+Convert natural language questions to terminal commands using AI.
 
 ## Features
 
-- 🤖 Uses OpenAI's latest models to generate terminal commands
+- 🤖 Uses OpenAI, Claude, or OpenRouter to generate terminal commands — pick one provider at setup time
 - 🔒 Secure API key storage using system keyring
 - 📋 Copy commands to clipboard
 - 🖥️ Cross-platform support (macOS, Linux, Windows/WSL)
@@ -82,18 +82,35 @@ pytest --cov=ai_cli
 
 ## Setup
 
-After installation, configure your OpenAI API key:
+After installation, configure an AI provider:
 
 ```bash
 ai setup
 ```
 
 This will:
-1. Prompt for your OpenAI API key
-2. Test the API key
-3. Store it securely in your system keyring
+1. Ask which provider to use — OpenAI, Claude, or OpenRouter
+2. Prompt for that provider's API key
+3. Test the key against the live API
+4. Optionally let you override the default model
+5. Store the key securely in your system keyring
 
-Get your API key from: https://platform.openai.com/api-keys
+Only one provider is active at a time. Running `ai setup` again switches to
+whichever provider you pick, overwriting the previous key.
+
+Get an API key from:
+- OpenAI: https://platform.openai.com/api-keys
+- Claude (Anthropic): https://console.anthropic.com/settings/keys
+- OpenRouter: https://openrouter.ai/keys
+
+### Non-interactive setup
+
+For scripting, pass the provider, key, and (optionally) model as flags:
+
+```bash
+ai setup --provider claude --api-key sk-ant-... --model claude-haiku-4-5-20251001
+ai setup --provider openrouter --api-key sk-or-... --model anthropic/claude-3.5-haiku
+```
 
 ## Usage
 
@@ -121,14 +138,14 @@ ai -c "compress this directory"
 ### Other commands
 
 ```bash
-# Check configuration status
+# Check configuration status (active provider, model, and whether a key is set)
 ai status
 
-# Reset/remove stored API key
+# Reset/remove the stored API key and provider/model config
 ai reset
 
-# Use a specific model
-ai --model gpt-4 "your question"
+# Override the model for a single query (default: the active provider's configured model)
+ai "your question" --model gpt-4
 ```
 
 ## Examples
@@ -230,18 +247,28 @@ After creating a GitHub release, update the Homebrew formula:
 
 ## Configuration
 
-The AI CLI stores your OpenAI API key securely using your system's keyring:
+The AI CLI stores your API key securely using your system's keyring:
 
 - **macOS**: Keychain
 - **Linux**: Secret Service API (GNOME Keyring, KDE Wallet, etc.)
 - **Windows**: Windows Credential Locker
 
-You can also use the `OPENAI_API_KEY` environment variable as a fallback.
+Which provider and model are active is recorded separately, in
+`~/.config/ai-cli/config.json` (no secrets live there — just the provider
+name and model id).
+
+You can also skip `ai setup` entirely and set the matching environment
+variable for your provider as a fallback (used only when no key is stored
+in the keyring):
+
+- OpenAI: `OPENAI_API_KEY`
+- Claude: `ANTHROPIC_API_KEY`
+- OpenRouter: `OPENROUTER_API_KEY`
 
 ## Requirements
 
 - Python 3.8+
-- OpenAI API key
+- An API key for one of: OpenAI, Claude (Anthropic), or OpenRouter
 
 ## License
 
